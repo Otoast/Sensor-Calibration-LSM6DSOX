@@ -55,7 +55,7 @@ struct SensorStatusBits {
 /// @brief Struct that contians the xyz coordinates for both the accelerometer portion and gyroscope portion of the LSM6DSOX data.
 struct LSM6DSOX_Data {
     struct {double x, y, z;} AccelData;
-    struct {double x, y, z;} GyroData;
+    struct {double omega_x,  omega_y, omega_z;} GyroData;
 
     friend std::ostream& operator<<(std::ostream& os, const LSM6DSOX_Data& data);
     LSM6DSOX_Data& operator+=(const LSM6DSOX_Data& other);
@@ -67,9 +67,10 @@ struct LSM6DSOX_Data {
 struct CalibrationData {
     int channelNum;
     double x_offset, y_offset, z_offset;
+    double omega_x_offset, omega_y_offset, omega_z_offset;
     double calibrationParams[3][3];
 
-    CalibrationData() : channelNum(-1), x_offset(0), y_offset(0), z_offset(0), calibrationParams({}) {}
+    CalibrationData() : channelNum(-1), x_offset(0), y_offset(0), z_offset(0), omega_x_offset(0), omega_y_offset(0), omega_z_offset(0), calibrationParams({}) {}
     std::string exportData();
 };
 

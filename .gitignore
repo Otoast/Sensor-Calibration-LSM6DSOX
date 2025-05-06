@@ -1,3 +1,4 @@
 main.cpp
 .vscode
 __pycache__
+*.ipynb

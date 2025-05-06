@@ -2,7 +2,7 @@
 
 std::ostream& operator<<(std::ostream& os, const LSM6DSOX_Data& data) {
     os << data.AccelData.x << "," << data.AccelData.y << "," << data.AccelData.z << ",";
-    os << data.GyroData.x << "," << data.GyroData.y << "," << data.GyroData.z;
+    os << data.GyroData.omega_x << "," << data.GyroData.omega_y << "," << data.GyroData.omega_z;
     return os;
 }
 
@@ -10,9 +10,9 @@ LSM6DSOX_Data& LSM6DSOX_Data::operator+=(const LSM6DSOX_Data& other) {
     AccelData.x += other.AccelData.x;
     AccelData.y += other.AccelData.y;
     AccelData.z += other.AccelData.z;
-    GyroData.x  += other.GyroData.x;
-    GyroData.y  += other.GyroData.y;
-    GyroData.z  += other.GyroData.z;
+    GyroData.omega_x  += other.GyroData.omega_x;
+    GyroData.omega_y  += other.GyroData.omega_y;
+    GyroData.omega_z  += other.GyroData.omega_z;
     return *this;
 }
 
@@ -20,14 +20,15 @@ LSM6DSOX_Data& LSM6DSOX_Data::operator/=(int val) {
     AccelData.x /= val;
     AccelData.y /= val;
     AccelData.z /= val;
-    GyroData.x  /= val;
-    GyroData.y  /= val;
-    GyroData.z  /= val;
+    GyroData.omega_x  /= val;
+    GyroData.omega_y  /= val;
+    GyroData.omega_z  /= val;
     return *this;
 }
 
 std::string CalibrationData::exportData() {    
-    std::string data = std::to_string(channelNum) + "\t" + std::to_string(x_offset) + "\t" + std::to_string(y_offset) + "\t" + std::to_string(z_offset); 
+    std::string data = std::to_string(channelNum) + "\t" + std::to_string(x_offset) + "\t" + std::to_string(y_offset) + "\t" + std::to_string(z_offset) + "\t";
+    data += std::to_string(omega_x_offset) + "\t" + std::to_string(omega_y_offset) + "\t" + std::to_string(omega_z_offset);
     for (int i = 0; i < 3; ++i) 
         for (int j = 0; j < 3; ++j)
             data += "\t" + std::to_string(calibrationParams[i][j]);

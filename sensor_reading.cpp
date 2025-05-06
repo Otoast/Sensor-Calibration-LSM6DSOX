@@ -76,19 +76,19 @@ void _readGyro(LSM6DSOX_Data &d) {
     // X-Axis low and high bits
     _parseRegister((char)LSM6DSOX_Commands::OUTX_L_GYROSCOPE, (char *)&readBuf[0]);
     _parseRegister((char)LSM6DSOX_Commands::OUTX_H_GYROSCOPE, (char *)&readBuf[1]);
-    d.GyroData.x = .001f * LSM6DSOX_GYRO_SENSITIVITY_FS_1000DPS * DEGREES_TO_RADIANS * 
+    d.GyroData.omega_x = .001f * LSM6DSOX_GYRO_SENSITIVITY_FS_1000DPS * DEGREES_TO_RADIANS * 
         (readBuf[0] | (int16_t)(readBuf[1] << 8));
 
     // Y-Axis low and high bits
     _parseRegister((char)LSM6DSOX_Commands::OUTY_L_GYROSCOPE, (char *)&readBuf[0]);
     _parseRegister((char)LSM6DSOX_Commands::OUTY_H_GYROSCOPE, (char *)&readBuf[1]);
-    d.GyroData.y = .001f * LSM6DSOX_GYRO_SENSITIVITY_FS_1000DPS * DEGREES_TO_RADIANS * 
+    d.GyroData.omega_y = .001f * LSM6DSOX_GYRO_SENSITIVITY_FS_1000DPS * DEGREES_TO_RADIANS * 
         (readBuf[0] | (int16_t)(readBuf[1] << 8));
 
     // Z-Axis low and high bits
     _parseRegister((char)LSM6DSOX_Commands::OUTZ_L_GYROSCOPE, (char *)&readBuf[0]);
     _parseRegister((char)LSM6DSOX_Commands::OUTZ_H_GYROSCOPE, (char *)&readBuf[1]);
-    d.GyroData.z = .001f * LSM6DSOX_GYRO_SENSITIVITY_FS_1000DPS * DEGREES_TO_RADIANS * 
+    d.GyroData.omega_z = .001f * LSM6DSOX_GYRO_SENSITIVITY_FS_1000DPS * DEGREES_TO_RADIANS * 
         (readBuf[0] | (int16_t)(readBuf[1] << 8));
 
 }
@@ -165,7 +165,7 @@ void sensor_reading() {
                 LSM6DSOX_read_xyz(myData);
                 // outputFile << timestamp << "," << channel << "," << myData << "\n";
                 std::cout << timestamp << ", " << channel << ", ";
-                std::cout << "Accel x: " << myData.AccelData.x << " | Accel y: " << myData.AccelData.y << " | Accel z: " << myData.AccelData.z << "\n"; 
+                std::cout << "Gyro x: " << myData.GyroData.omega_x << " | Gyro y: " << myData.GyroData.omega_y << " | Gyro z: " << myData.GyroData.omega_z << "\n"; 
             }
 
         }

@@ -158,17 +158,15 @@ public:
         channel(channel),
 
         MAX_DATA_SIZE(40), MAX_SAMPLE_SIZE(150), GRAVITY(1),    
-        GRAVITY_TOL(0.3), ZERO_TOL(0.3), STDEV_THRESHOLD(0.05),
+        GRAVITY_TOL(0.3), ZERO_TOL(0.3), STDEV_THRESHOLD(0.04),
 
         queueMutex(), stopDataCollection(false), recentData(),
         rawData({}), dataSamples({}) 
     {
         
         auto data_collection_behavior = [&] () {
-            std::cout << "Starting data collection..." << std::endl;
             _collectData(); // To prevent division by zero errors
             while (!stopDataCollection) _collectData();
-            std::cout << "Shutting down data collection..." << std::endl;
             stopDataCollection = false;
             return;
         };
@@ -179,6 +177,7 @@ public:
 
     CalibrationData calibrationLoop () {
         std::cout << "Please calibrate the (+-) XYZ axis:" << std::endl;
+        std::cout << "PRO TIP: When calbirating the +Z Axis, ideally have the sensor laid flat on a surface. This is also used to calibrate the gyro." << std::endl;
         // 3 axis, 2 directions +-
         int amt_calibrated = 0;
         std::string calibratedAxisName[3][2] = {{"-X Axis", "+X Axis"}, {"-Y Axis", "+Y Axis"}, {"-Z Axis", "+Z Axis"}};
@@ -190,13 +189,15 @@ public:
                 usleep(100000);
                 _getAxisInfo(_findValidAxis(), &axisInfo, isAxisCalibrated, calibratedAxisName);
             }            
-            std::cout << axisInfo.axisName << " detected...\n" << "Hold the accelerometer steady at that axis." << std::endl;
+            std::cout << axisInfo.axisName << " detected... Hold the accelerometer steady at that axis." << std::endl;
             std::string current_axis = axisInfo.axisName;
             bool sucessful = _collectDataSamples(&axisInfo, isAxisCalibrated, calibratedAxisName);
             
-            if (sucessful) 
-                std::cout << current_axis << " data samples sucessfully collected. Try a different axis! (" << ++amt_calibrated << " / 6 Done)" << std::endl;
-            else std::cout << "Failed to get samples for the axis: " << current_axis << ". Did you move the axis? Please try again." << std::endl;            
+            if (sucessful) std::cout << current_axis << " data samples sucessfully collected. Try a different axis! (" << ++amt_calibrated << " / 6 Done)" << std::endl;
+            else std::cout << "\rFailed to get samples for the axis: " << current_axis << ". Did you move the axis? Please try again.\n" << std::flush;            
+
+            if (sucessful && (current_axis == std::string("+Z Axis"))) std::cout << "Gyro calibrated. Nothing needs to be done further for the gyro." << std::endl;
+
         }
 
         std::cout << "All 6 data axis collected. Calculating offset values..." << std::endl;
@@ -216,6 +217,10 @@ public:
             dataSamples.pos_x.AccelData.z + dataSamples.neg_x.AccelData.z + dataSamples.pos_y .AccelData.z +
             dataSamples.neg_y.AccelData.z + dataSamples.pos_z.AccelData.z + dataSamples.neg_z.AccelData.z
         );
+
+        cd.omega_x_offset = dataSamples.pos_z.GyroData.omega_x;
+        cd.omega_y_offset = dataSamples.pos_z.GyroData.omega_y;
+        cd.omega_z_offset = dataSamples.pos_z.GyroData.omega_z;
         
         auto ds = dataSamples;
         cd.calibrationParams[0][0] = ((ds.pos_x.AccelData.x - cd.x_offset) + (-ds.neg_x.AccelData.x + cd.x_offset)) / 2;
@@ -268,23 +273,29 @@ CalibrationData parseStringData(std::string s) {
     std::string buf;
     
     while (getline(dataStream, buf, '\t')) {
-        if (dataBuf.size() > 13) {
+        if (dataBuf.size() > 16) {
             std::cerr << "Overflow in collecting calibration data. Too many values per line?" << std::endl;
             exit(1);
         }
         dataBuf.push_back(stof(buf));
     }
-    if (dataBuf.size() < 13) std::cerr << "Not enough values for supposed channel: " << (int)dataBuf.at(0) << ". Please fix this entry or remove it." << std::endl;
+    if (dataBuf.size() < 16) {
+        std::cerr << "Not enough values for assumed sensor channel: " << (int)dataBuf.at(0) << ". Please fix this entry or remove it." << std::endl;
+        exit(1);
+    }
     CalibrationData cd;
 
     cd.channelNum = (int)dataBuf.at(0);
     cd.x_offset = dataBuf.at(1); 
     cd.y_offset = dataBuf.at(2); 
     cd.z_offset = dataBuf.at(3);
-
+    cd.omega_x_offset = dataBuf.at(4);
+    cd.omega_y_offset = dataBuf.at(5);
+    cd.omega_z_offset = dataBuf.at(6);
+    
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
-            cd.calibrationParams[i][j] = dataBuf[4 + (i * 3 + j)];
+            cd.calibrationParams[i][j] = dataBuf[7 + (i * 3 + j)];
         }
     }
     return cd;
@@ -293,7 +304,7 @@ CalibrationData parseStringData(std::string s) {
 
 
 
-void sensorCalibration() {
+std::vector<CalibrationData> sensorCalibration() {
     // Assumes there is only 1 I2C and 8 channels on the board. Change if not true
     int sensorChannels[8] = {};
     int numSensors = findSensorChannels(sensorChannels, 8);
@@ -328,15 +339,6 @@ void sensorCalibration() {
     }
     
     calibrationFile.clear(); // Reset bits to write to it again
-
-    // Adding a newline to end of file in case there isn't
-    if (calibrationFile.tellg() > 0) {
-        calibrationFile.seekg(-1, std::ios::end);
-        char lastChar;
-        calibrationFile.get(lastChar);
-        if (lastChar == '\n') calibrationFile << "\n";
-    }
-    calibrationFile.seekp(0, std::ios::end);
     
     for (int i = 0; i < numSensors; ++i) {
         if (sensorChannels[i] > -1) {
@@ -349,7 +351,9 @@ void sensorCalibration() {
             calibrationFile << cd.exportData() << std::endl;
             allData.push_back(cd); 
         }
-    }}
+    }
+    return allData;
+}
 
 int main () {
     if (!bcm2835_init() | !bcm2835_i2c_begin()) {
