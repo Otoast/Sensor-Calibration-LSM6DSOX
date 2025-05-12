@@ -27,11 +27,13 @@ LSM6DSOX_Data& LSM6DSOX_Data::operator/=(int val) {
 }
 
 std::string CalibrationData::exportData() {    
-    std::string data = std::to_string(channelNum) + "\t" + std::to_string(x_offset) + "\t" + std::to_string(y_offset) + "\t" + std::to_string(z_offset) + "\t";
-    data += std::to_string(omega_x_offset) + "\t" + std::to_string(omega_y_offset) + "\t" + std::to_string(omega_z_offset);
+    std::string data = std::to_string(channelNum);
+    
+    for (int i = 0; i < 3; ++i) data += "\t" + std::to_string(offsetsMatrix(i, 0));
+    for (int i = 0; i < 3; ++i) data += "\t" + std::to_string(omegaOffsetsMatrix(i, 0));
     for (int i = 0; i < 3; ++i) 
         for (int j = 0; j < 3; ++j)
-            data += "\t" + std::to_string(calibrationParams[i][j]);
+            data += "\t" + std::to_string(calibrationMatrix(i, j));
     
     return data;
 }

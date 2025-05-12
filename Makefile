@@ -12,7 +12,7 @@ NEEDED_OBJECTS = sensor_reading.o registers.o
 
 
 
-main: main.cpp $(NEEDED_OBJECTS)
+main: main.cpp $(NEEDED_OBJECTS) sensor_calibration.o
 	$(CXX) $^ $(CXXFLAGS) -o $@ $(LINKS)
 
 %.o: %.cpp
@@ -22,5 +22,5 @@ clean:
 	rm *.o main sensor_calibration
 
 
-sensor_calibration: sensor_calib.cpp $(NEEDED_OBJECTS)
+sensor_calibration: sensor_calibration.cpp $(NEEDED_OBJECTS)
 	$(CXX) $^ $(CXXFLAGS) -o $@ $(LINKS)

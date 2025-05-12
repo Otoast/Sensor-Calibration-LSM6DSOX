@@ -1,6 +1,7 @@
 
 #include "registers.h"
 #include "sensor_reading.h"
+#include "sensor_calibration.h"
 
 void _setUpSensor() {
     bcm2835_i2c_setSlaveAddress(LSM6DSOX_ADDRESS);
@@ -132,18 +133,47 @@ std::ofstream setUpOutputFile() {
     return outFile;
 }
 
+void LSM6DSOX_calibrationCorrection(LSM6DSOX_Data& data, CalibrationData& cd) {
+    Eigen::MatrixXd accelMatrix (3, 1);
+    accelMatrix << data.AccelData.x, data.AccelData.y, data.AccelData.z;
+    accelMatrix = cd.calibrationMatrix * (accelMatrix - cd.offsetsMatrix);
+    
+    Eigen::MatrixXd gyroMatrix (3, 1);
+    gyroMatrix << data.GyroData.omega_x, data.GyroData.omega_y, data.GyroData.omega_z;
+    gyroMatrix = gyroMatrix - cd.omegaOffsetsMatrix;
 
+    data.AccelData.x = accelMatrix(0, 0);
+    data.AccelData.y = accelMatrix(1, 0);
+    data.AccelData.z = accelMatrix(2, 0);
+  
+    data.GyroData.omega_x = gyroMatrix(0, 0);
+    data.GyroData.omega_y = gyroMatrix(1, 0);
+    data.GyroData.omega_z = gyroMatrix(2, 0);
+}
 
 void sensor_reading() {
     communicateWithButton(BUTTON_CHANNEL);
     setLEDBrightness(40);   
 
-    int lsm6dsox_channels[8]; // Set max channels 
-    int amtChannels = findSensorChannels(lsm6dsox_channels, 8); // Set max channels
+    int lsm6dsox_channels[MAX_I2C_CHANNELS]; 
+
+    int amtChannels = findSensorChannels(lsm6dsox_channels, MAX_I2C_CHANNELS);
+    
+    // Settings for data collection
     for (int i = 0; i < amtChannels; ++i) {
         int channel = lsm6dsox_channels[i];
         communicateWithLSM6DOX(channel);
         _setUpSensor();
+    }
+
+    // Calibration data for each sensor parsed. This is for easy mapping of sensor to calibration data
+    CalibrationData sensorCalibrations[MAX_I2C_CHANNELS];
+    {
+        std::vector<CalibrationData> calibData = sensorCalibration();
+        for (int i = 0; i < (int)calibData.size(); ++i) {
+            CalibrationData cd = calibData.at(i);
+            sensorCalibrations[cd.channelNum] = cd;
+        }    
     }
 
     std::ofstream outputFile = setUpOutputFile();
@@ -161,13 +191,12 @@ void sensor_reading() {
             communicateWithLSM6DOX(channel);
             ssb = get_LSM6DSOX_status();
             
-            if (ssb.accelAvail and ssb.gyroAvail) {
-                LSM6DSOX_read_xyz(myData);
-                // outputFile << timestamp << "," << channel << "," << myData << "\n";
-                std::cout << timestamp << ", " << channel << ", ";
-                std::cout << "Gyro x: " << myData.GyroData.omega_x << " | Gyro y: " << myData.GyroData.omega_y << " | Gyro z: " << myData.GyroData.omega_z << "\n"; 
-            }
+            // Busy waiting, but ideally should never need to be on this section for long, and this is the only process running
+            while(!(ssb.accelAvail && ssb.gyroAvail)) ssb = get_LSM6DSOX_status();
 
+            LSM6DSOX_read_xyz(myData);
+            LSM6DSOX_calibrationCorrection(myData, sensorCalibrations[channel]);
+            outputFile << timestamp << "," << channel << "," << myData << "\n";
         }
         communicateWithButton(BUTTON_CHANNEL);
         buttonClicked = getButtonStatus().hasBeenClicked;
