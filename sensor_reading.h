@@ -43,6 +43,8 @@ SensorStatusBits get_LSM6DSOX_status();
 std::ofstream setUpOutputFile();
 
 
+void LSM6DSOX_calibrationCorrection(LSM6DSOX_Data& data, CalibrationData& cd);
+
 void sensor_reading();
 
 #endif

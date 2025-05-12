@@ -4,7 +4,7 @@
 #include <bcm2835.h>
 #include <iostream>
 #include <unistd.h>
-
+#include <Eigen/Dense>
 
 constexpr uint8_t I2C_DEVICE_ID = 0x70;   // Default address of SparkFun I2C Mux
 constexpr uint8_t BUTTON_ADDRESS = 0x6F;  // Qwiic Button address
@@ -12,6 +12,7 @@ constexpr uint8_t BUTTON_CHANNEL = 1; // Channel the button is connected to on t
 
 constexpr uint8_t LSM6DSOX_ADDRESS = 0x6A; // LSM6DSOX accelerometer address
 
+constexpr uint8_t MAX_I2C_CHANNELS = 8; // Max channels on the i2c
 
 /// @brief Refer to Qwiic Button Register Map to gain more information.
 enum class ButtonCommands {
@@ -66,12 +67,20 @@ struct LSM6DSOX_Data {
 
 struct CalibrationData {
     int channelNum;
-    double x_offset, y_offset, z_offset;
-    double omega_x_offset, omega_y_offset, omega_z_offset;
-    double calibrationParams[3][3];
 
-    CalibrationData() : channelNum(-1), x_offset(0), y_offset(0), z_offset(0), omega_x_offset(0), omega_y_offset(0), omega_z_offset(0), calibrationParams({}) {}
+    Eigen::Matrix3d calibrationMatrix;
+    Eigen::MatrixXd offsetsMatrix;
+    Eigen::MatrixXd omegaOffsetsMatrix;
+
+    CalibrationData() : 
+        channelNum(-1), 
+        calibrationMatrix(Eigen::Matrix3d::Identity()), 
+        offsetsMatrix(Eigen::MatrixXd::Zero(3, 1)), 
+        omegaOffsetsMatrix(Eigen::MatrixXd::Zero(3, 1)) {}
+
+
     std::string exportData();
+    
 };
 
 
